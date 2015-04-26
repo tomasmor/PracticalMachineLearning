@@ -1,0 +1,93 @@
+Practical Machine Learning course project
+=====================
+
+In this project I've analyzed data to determine quality of activivty of people who lifted a barbell. People for this study makes mistakes in exercises and goal of this project is to prdeict manner they made exercises.
+
+For reproducing this script you should install caret package and randomForst package.
+
+Getting the data
+-----------------
+
+Download data if its needed:
+
+```{r}
+if (!file.exists("pml-testing.csv")){
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "pml-testing.csv", method="curl")
+}
+
+if (!file.exists("pml-training.csv")){
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv", method="curl")
+
+}
+```
+
+Reading data:
+
+```{r}
+testing_data <- read.csv("pml-testing.csv", na.strings=c("#DIV/0!"))
+training_data <- read.csv("pml-training.csv", na.strings=c("#DIV/0!"))
+```
+
+We're interested in numeric variables so make it numeric:
+```{r}
+for(i in c(8:ncol(training_data)-1)) {training_data[,i] = suppressWarnings(as.numeric(as.character(training_data[,i])))}
+
+for(i in c(8:ncol(testing_data)-1)) {testing_data[,i] = suppressWarnings(as.numeric(as.character(testing_data[,i])))}
+```
+
+According to summary of data there are few columns with only na meanings. Also we're not interested in first 7 columns contains data about time and person who was under experiment. They will not help for analyzis so lets drop it:
+
+```{r}
+clean_training_data <- training_data[,colSums(is.na(training_data)) == 0][-(1:7)]
+
+clean_testing_data <- testing_data[,colSums(is.na(testing_data)) == 0][-(1:7)]
+```
+
+Training and cross-validation sets
+-----------------------------------
+So we has create clean datasets and ready to analyze data.
+
+Let's separate training set and cross validation set to be sure our model works fine.
+```{r}
+library(caret)
+set.seed(1000)
+cl <- createDataPartition(y=clean_training_data$classe, p=0.7, list=FALSE)
+training_set <- clean_training_data[cl,]
+cv_set <- clean_training_data[-cl,]
+
+```
+
+Random Forest
+-------------
+For analysis was chosen Random Forest algorithm.
+
+```{r}
+library(randomForest)
+r_f <- randomForest(classe ~. , data<- training_set)
+```
+predictions_training <- predict(r_f, newdata=training_set)
+predictions_cv <- predict(r_f, newdata=cv_set)
+confusionMatrix(predictions_cv, cv_set$classe)
+
+As we can see from confusion matrix, random forest gives good results on validation sets.
+
+Submission assigment
+--------------------
+
+The last part of this project is evaluation on test set we were given at the beginning.
+According to instructions we should use our prediction algorythm on testing set and create 20 files with class column.
+
+```{r}
+predictions_testing <- predict(r_f, newdata=clean_testing_data)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(predictions_testing)
+```
+
+System was trained perfectly and all 20 cases were decided right.
